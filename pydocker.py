@@ -106,10 +106,6 @@ import re
 import json
 import shlex
 
-import logging
-
-log = logging.getLogger(__name__)
-
 # ############################################################################ #
 
 
@@ -127,8 +123,9 @@ class DockerFile(object):
         r'(?P<version>[0-9A-Za-z\-\_\.]+)'
     )
 
-    def __init__(self, base_img, name=''):
+    def __init__(self, base_img, name='', verbose=True):
         name = self._parse_img_name(name)
+        self._verbose = verbose
         self._instructions = []
         self._instructions.append({
             'type':     'instruction',
@@ -161,6 +158,10 @@ class DockerFile(object):
     def get_img_name(self):
         return '{}/{}:{}'.format(
             self._namespace, self._name, self._version)
+
+    def print(self, s):
+        if self._verbose:
+            print(s)
 
     def __setattr__(self, key, value):
         if key.startswith('_'):
@@ -255,7 +256,7 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         if dockefile_name is None:
             dockefile_name = 'Dockerfile.{}'.format(self._name)
         #
-        log.info('Generate dockerfile and additional files: {}'
+        self.print('Generate dockerfile and additional files: {}'
                  ''.format(dockefile_name))
         #
         result = ''
@@ -307,7 +308,7 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
     # -------------------------------------------------------------------- #
     def build_img(self, remove_out_files=True):
 
-        log.info('Build new docker img {}'.format(self.get_img_name()))
+        self.print('Build new docker img {}'.format(self.get_img_name()))
         #
         files = self.generate_files()
         dirname, filename = os.path.split(files[0])
@@ -320,7 +321,7 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         #
         cmd = re.sub(r'[\r\n\s\t]+', ' ', cmd).strip()
         #
-        log.info('Execute "{}"'.format(cmd))
+        self.print('Execute "{}"'.format(cmd))
         #
         retcode = os.system(cmd)
         if remove_out_files and retcode == 0:
@@ -332,7 +333,7 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         ok = self.build_img()
         assert ok, 'Build step failed, skipping run step...'
         tag = self.get_img_name()
-        log.info('Running docker img {}'.format(tag))
+        self.print('Running docker img {}'.format(tag))
         opt_list = []
         cmd = f'docker run '
         for opt in k:
@@ -341,7 +342,7 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
             opt_list.append(opt)
         cmd += f'{" ".join(opt_list)} {tag}'
         cmd = re.sub(r'[\r\n\s\t]+', ' ', cmd).strip()
-        log.info('Execute "{}"'.format(cmd))
+        self.print('Execute "{}"'.format(cmd))
         os.system(cmd)
         #   #   #
 #
