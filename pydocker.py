@@ -199,22 +199,26 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
 # ############################################################################ #
         '''.strip() % {'script_name': dst_path} + '\n\n'+ content
 
-        self.COPY(dst_path, content, chmod='+x')
-        self.RUN = dst_path
+        self.COPY(dst_path, content)
+        cmd = f'chmod +x {dst_path} && '
+        cmd += dst_path
         if not keep_file:
-            self.RUN = 'rm {}'.format(dst_path)
+            cmd += f' && rm {dst_path}'
+        self.RUN = cmd
         #
 
     def RUN_python_script(self, dst_path, fn, keep_file=False,
-                          python='/usr/bin/python'):
+                          python='python'):
         if not isinstance(fn, str):
             from inspect import getsource
             fn = '{}\n{}()'.format(getsource(fn), fn.__name__)
         #
-        self.COPY(dst_path, '# -*- coding: utf-8 -*-\n' + fn, chmod='+x')
-        self.RUN = '{} {}'.format(python, dst_path)
+        self.COPY(dst_path, '# -*- coding: utf-8 -*-\n' + fn)
+        cmd = f'chmod +x {dst_path} && '
+        cmd += '{} {}'.format(python, dst_path)
         if not keep_file:
-            self.RUN = 'rm {}'.format(dst_path)
+            cmd += f' && rm {dst_path}'
+        self.RUN = cmd
         #
 
     # -------------------------------------------------------------------- #
@@ -232,7 +236,7 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
             if instruction['type'] == 'file':
                 dst_path = instruction['path']
                 local_name = '{}.{}@{}'.format(
-                    dockefile_name, len(files), os.path.basename(dst_path))
+                    '_script', len(files), os.path.basename(dst_path))
                 #
                 files.append([local_name, instruction['content']])
                 result += '\nCOPY {} {}'.format(local_name, dst_path)
@@ -300,4 +304,3 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
 
 
 Dockerfile = DockerFile  # alias
-
