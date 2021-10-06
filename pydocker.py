@@ -127,7 +127,8 @@ class DockerFile(object):
         r'(?P<version>[0-9A-Za-z\-\_\.]+)'
     )
 
-    def __init__(self, base_img, name):
+    def __init__(self, base_img, name=''):
+        name = self._parse_img_name(name)
         self._instructions = []
         self._instructions.append({
             'type':     'instruction',
@@ -142,6 +143,20 @@ class DockerFile(object):
         self._namespace = _r.group('namespace')
         self._name = _r.group('name')
         self._version = _r.group('version')
+
+    def _parse_img_name(self, s, user='test', repo='test', version='latest'):
+        if not s:
+            return f'{user}/{repo}:{version}'
+        ss_version = s.split(':')
+        ss_user = s.split('/')
+        if len(ss_version) > 1:
+            version = ss_version[1]
+        if len(ss_user) > 1:
+            user = ss_user[0]
+            repo = ss_user[1].replace(f':{version}', '')
+        else:
+            repo = s.replace(f':{version}', '')
+        return f'{user}/{repo}:{version}'
 
     def get_img_name(self):
         return '{}/{}:{}'.format(
