@@ -104,7 +104,7 @@ import os
 import sys
 import re
 import json
-import shlex
+import subprocess
 
 # ############################################################################ #
 
@@ -323,11 +323,12 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         #
         self.print('Execute "{}"'.format(cmd))
         #
-        retcode = os.system(cmd)
-        if remove_out_files and retcode == 0:
+        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=sys.stdout, stderr=subprocess.PIPE)
+        p.communicate()
+        if remove_out_files and p.returncode == 0:
             for file in files:
                 os.remove(file)
-        return retcode == 0
+        return p.returncode == 0
     # -------------------------------------------------------------------- #
     def build_img_and_run(self, *k, **kw):
         ok = self.build_img()
@@ -343,7 +344,8 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         cmd += f'{" ".join(opt_list)} {tag}'
         cmd = re.sub(r'[\r\n\s\t]+', ' ', cmd).strip()
         self.print('Execute "{}"'.format(cmd))
-        os.system(cmd)
+        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=sys.stdout, stderr=subprocess.PIPE)
+        p.communicate()
         #   #   #
 #
 
