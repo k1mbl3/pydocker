@@ -168,6 +168,8 @@ class DockerFile(object):
         #
         if not isinstance(value, str):
             value = json.dumps(value)
+        
+        value = value.strip(' \t\n')
         #
         self._instructions.append({
             'type':     'instruction',
@@ -196,7 +198,18 @@ class DockerFile(object):
             self.RUN = 'chmod {} {}'.format(chmod, dst_path)
         #
 
-    def COPY(self, dst_path, content, chmod=None):
+    def COPY(self, dst_path, content, chmod=None, chown='', _from='', strict=False):
+        if any((chown, _from)):
+            strict = True
+        if strict:
+            self._instructions.append({
+                'type':         'COPY',
+                'path':         dst_path,
+                'content':      content,
+                'chown':        chown,
+                'from':         _from,
+            })
+            return
         self.add_new_file(dst_path, content, chmod=chmod)
 
     def RUN_bash_script(self, dst_path, content, keep_file=False):
@@ -255,6 +268,12 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
                 #
                 files.append([local_name, instruction['content']])
                 result += '\nCOPY {} {}'.format(local_name, dst_path)
+            elif instruction['type'] == 'COPY':
+                keys = ['from', 'chown']
+                _path = instruction['path']
+                _content = instruction['content']
+                opts = [f'--{opt}={instruction.get(opt)}' for opt in keys if instruction.get(opt)]
+                result += f'\nCOPY {" ".join(opts)+" " if opts else ""}{_path} {_content}'
             elif instruction['type'] == 'instruction':
                 result += '\n{name} {value}'.format(**instruction)
             else:
@@ -293,7 +312,7 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         files = self.generate_files()
         dirname, filename = os.path.split(files[0])
 
-        cmd = 'docker build  --tag {tag}  --file={docker_file} {path}/ '.format(
+        cmd = 'docker build  --tag {tag} --file={docker_file} {path}/ '.format(
             tag=self.get_img_name(),
             docker_file=filename,
             path=dirname,
