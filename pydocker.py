@@ -312,6 +312,8 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         files = [[dockefile_name, result], ] + files
         return self._create_files(path, files, remove_old_files)
 
+    gen = generate_files
+
     @staticmethod
     def _create_files(path, files, remove_old_files):
         dockerfile_name = files[0][0]
