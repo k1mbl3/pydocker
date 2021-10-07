@@ -335,9 +335,9 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         #
         files = self.generate_files()
         dirname, filename = os.path.split(files[0])
-
-        cmd = 'docker build  --tag {tag} --file={docker_file} {path}/ '.format(
-            tag=self.get_img_name(),
+        tag = self.get_img_name()
+        cmd = 'docker build --tag {tag} --file={docker_file} {path}/ '.format(
+            tag=tag,
             docker_file=filename,
             path=dirname,
         )
@@ -346,29 +346,13 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         #
         self.print('Execute "{}"'.format(cmd))
         #
-        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=sys.stdout, stderr=subprocess.PIPE)
-        p.communicate()
-        if remove_out_files and p.returncode == 0:
+        returncode = os.system(cmd)
+        if remove_out_files and returncode == 0:
             for file in files:
                 os.remove(file)
-        return p.returncode == 0
-    # -------------------------------------------------------------------- #
-    def build_img_and_run(self, *k, **kw):
-        ok = self.build_img()
-        assert ok, 'Build step failed, skipping run step...'
-        tag = self.get_img_name()
-        self.print('Running docker img {}'.format(tag))
-        opt_list = []
-        cmd = f'docker run '
-        for opt in k:
-            if not opt.startswith('-'):
-                opt = '-'+opt
-            opt_list.append(opt)
-        cmd += f'{" ".join(opt_list)} {tag}'
-        cmd = re.sub(r'[\r\n\s\t]+', ' ', cmd).strip()
-        self.print('Execute "{}"'.format(cmd))
-        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=sys.stdout, stderr=subprocess.PIPE)
-        p.communicate()
+        
+        if returncode == 0:
+            self.print(f'\n\n[DONE] Built. Now use "docker run -it {tag}" to run it\n\n')
         #   #   #
 #
 
