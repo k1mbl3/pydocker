@@ -101,10 +101,8 @@ limitations under the License.
 """
 
 import os
-import sys
 import re
 import json
-import subprocess
 
 # ############################################################################ #
 
@@ -123,9 +121,10 @@ class DockerFile(object):
         r'(?P<version>[0-9A-Za-z\-\_\.]+)'
     )
 
-    def __init__(self, base_img, name='', verbose=True):
+    def __init__(self, base_img, name='', verbose=True, show_ext=False):
         name = self._parse_img_name(name)
         self._verbose = verbose
+        self._show_ext = show_ext
         self._instructions = []
         self._instructions.append({
             'type':     'instruction',
@@ -275,9 +274,14 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
 
     # -------------------------------------------------------------------- #
     def generate_files(self, dockefile_name=None, path='./',
-                       remove_old_files=True):
+                       remove_old_files=True, show_ext='__NOT_SET__'):
+        if show_ext == '__NOT_SET__':
+            show_ext = self._show_ext
         if dockefile_name is None:
-            dockefile_name = 'Dockerfile.{}'.format(self._name)
+            if show_ext:
+                dockefile_name = 'Dockerfile.{}'.format(self._name)
+            else:
+                dockefile_name = 'Dockerfile'
         #
         self.print('Generate dockerfile and additional files: {}'
                  ''.format(dockefile_name))
