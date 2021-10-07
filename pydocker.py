@@ -199,7 +199,7 @@ class DockerFile(object):
             self.RUN = 'chmod {} {}'.format(chmod, dst_path)
         #
 
-    def COPY(self, dst_path, content, chmod=None, chown='', _from='', strict=False):
+    def COPY(self, dst_path, content, chmod=None, chown='', _from='', strict=False, keep_file=True, run=False, builtin=False):
         if any((chown, _from)):
             strict = True
         if strict:
@@ -211,9 +211,28 @@ class DockerFile(object):
                 'from':         _from,
             })
             return
+        if builtin:
+            before =  """\n \" '"""
+            after = """\\n\\\n \" '"'"'"""
+            replace_tuples = list(zip(before.split(' '), after.split(' ')))
+            safe_content = content.strip(' \t\n')
+            for a, b in replace_tuples:
+                safe_content = safe_content.replace(a, b)
+            cmd = f'''echo '{safe_content}' > {dst_path}'''
+            if chmod:
+                cmd += f' && chmod {chmod} {dst_path}'
+            if run:
+                if run == True:
+                    cmd += f' && {dst_path}'
+                else:
+                    cmd += f' && {run} {dst_path}'
+            if not keep_file:
+                cmd += f' && rm {dst_path}'
+            self.RUN = cmd
+            return
         self.add_new_file(dst_path, content, chmod=chmod)
 
-    def RUN_bash_script(self, dst_path, content, keep_file=False):
+    def RUN_bash_script(self, dst_path, content, keep_file=False, builtin=False):
         # https://stackoverflow.com/questions/22009364/is-there-a-try-catch-command-in-bash
         # https://unix.stackexchange.com/questions/462156/how-do-i-find-the-line-number-in-bash-when-an-error-occured
         content = '''
@@ -228,6 +247,8 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
 # ############################################################################ #
         '''.strip() % {'script_name': dst_path} + '\n\n'+ content
 
+        if builtin:
+            return self.COPY(dst_path, content, chmod='+x', run=True, keep_file=keep_file, builtin=True)
         self.COPY(dst_path, content)
         cmd = f'chmod +x {dst_path} && '
         cmd += dst_path
@@ -236,13 +257,15 @@ trap '_failure ${LINENO} "$BASH_COMMAND"' ERR
         self.RUN = cmd
         #
 
-    def RUN_python_script(self, dst_path, fn, keep_file=False,
-                          python='python'):
+    def RUN_python_script(self, dst_path, fn, keep_file=False, python='python', builtin=False):
         if not isinstance(fn, str):
             from inspect import getsource
             fn = '{}\n{}()'.format(getsource(fn), fn.__name__)
         #
-        self.COPY(dst_path, '# -*- coding: utf-8 -*-\n' + fn)
+        to_write = '# -*- coding: utf-8 -*-\n' + fn
+        if builtin:
+            return self.COPY(dst_path, to_write, keep_file=keep_file, run=python, chmod='+x', builtin=True)
+        self.COPY(dst_path, to_write)
         cmd = f'chmod +x {dst_path} && '
         cmd += '{} {}'.format(python, dst_path)
         if not keep_file:
